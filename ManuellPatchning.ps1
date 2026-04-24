@@ -29,16 +29,15 @@ SOFTWARE.
 [CmdletBinding()]
 param (
     [Parameter(Mandatory=$false, Position=0)]
-    [string]$Server1 = "pubt-ap-08",
-
+    [string]$Server1 = "server1"
     [Parameter(Mandatory=$false, Position=1)]
-    [string]$Server2 = "pubt-ap-07",
+    [string]$Server2 = "server2",
 
     [Parameter(Mandatory=$false)]
     [bool]$ShouldRestoreCluster = $false,
 
     [Parameter(Mandatory=$false)]
-    [string]$Filter = "Pubt",
+    [string]$Filter = "SystemAcronym",
 
     [Parameter(Mandatory=$false)]
     [bool]$Interactive = $true,
@@ -194,7 +193,7 @@ function Set-MMforCluster {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [string]$ScomServer = "SCOM-AP-31",
+        [string]$ScomServer = "SCOMSERVER",
         [Parameter(Mandatory = $true)]
         [string]$Clustername,
         [Parameter(Mandatory = $true)]

@@ -1,6 +1,6 @@
 (Param
-[String]$ScomManagementServer = "SCOM-AP-31",
-[String]$FilePath = "C:\Admin\DataExportPowershell\ALLMPSrefs.csv"
+[String]$ScomManagementServer = "<MANAGEMENTSERVER>",
+[String]$FilePath = "C:\Admin\Results.csv"
 )
 # Load SCOM module
 Import-Module OperationsManager

@@ -2,15 +2,19 @@
 #INFO
 # Scriptet körs i en folder med .\GetUniqueSystemAcronym.ps1
 # Scriptet kan inte kolla randomgenerade akronymer som kan dyka upp efter att
-# Skapat av Henrik Vikström
+# Skapat av Henrik Walsöe Vikström
 
 #requires -Version 5.1
+
+#It may broke on PS7.0+ but it is tried on it. 
 
 Write-Host " - INFO - " -ForegroundColor DarkYellow
 Write-Host "Scriptet kan inte ändra på randomiserade akronymer som ännu inte skapats. D.v.s det är inte iterativt."
 Write-Host "Men det har en check på redan generarade akronymer och ändrar en ej ännu skapad akronym till en unik "
 Write-Host "Laddar man dock in listan av akronymer igen som borde vara fullständig nu så genererars unika akronymer för alla systemnamn."
-Write-Host "Scriptet är testat med .xlxs-filen 'System till systemkatalogen.xlsx' nedladdat från Easit."
+Write-Host "Scriptet är testat med .xlxs-filen 'System.xlsx'"
+Write-Host ""
+Write-Host "!!!OBS!!! har man inte modulen ImportExcel tar det ett tag att ladda in scriptet/guit"
 Write-Host ""
 Write-Host "====================================="
 Write-Host "  System Acronym Tool starting..."
@@ -232,7 +236,7 @@ function Invoke-Processing {
     $felmeddelandeAkronym = ""
 
     $firstWord = (($Systemnamn -split '\s+')[0] -replace '[^A-Za-z]', '').ToUpper()
-    $cleanSystemnamn = $Systemnamn -replace '[åäöÅÄÖ]', ''
+$cleanSystemnamn = $Systemnamn -replace '[åäöÅÄÖ]', ''
 
     $result = ($cleanSystemnamn.ToUpper() -split '\s+' | ForEach-Object {
         $clean = ($_ -replace '[^A-Za-z]', '')
@@ -244,7 +248,7 @@ function Invoke-Processing {
     $result = ""
     }
     # ---- RULES ----
-
+$result = $result.ToString()
 
 	
 # "Akronym med fyra ord unik."
@@ -274,29 +278,36 @@ function Invoke-Processing {
     #"Skifte position från första ord plus ev. randomtecken."
 
     elseif ($result -and $firstword.Length -ge 1) {
+            # Start with system prefix
+            $candidate = $result
+    
+            # Add as many chars from firstword as fit (up to 4 total)
+            $remaining = 4 - $candidate.Length
+            $candidate += $firstword.Substring(1, $firstword.Length-1)
+    
+            # If still not 4 chars, pad with random letters
+            $remaining = 4 - $candidate.Length
+            if ($remaining -gt 0) {
+                $candidate += -join (1..$remaining | ForEach-Object {
+                    [char](Get-Random -Minimum 65 -Maximum 91)
+                }) 
+            } 
+             
+            $candidate = $candidate.substring(0,4)
 
-    do {
-        # Start with system prefix
-        $candidate = $result
-
-        # Add as many chars from firstword as fit (up to 4 total)
-        $remaining = 4 - $candidate.Length
-        $candidate += $firstword.Substring(1, $firstword.Length)
-
-        # If still not 4 chars, pad with random letters
-        $remaining = 4 - $candidate.Length
-        if ($remaining -gt 0) {
-            $candidate += -join (1..$remaining | ForEach-Object {
-                [char](Get-Random -Minimum 65 -Maximum 91)
-            })
-        }
-
-    } while ($script:Comparison -contains $candidate)
-
-    $result = $candidate
-    $felmeddelandeAkronym = "Skifte position 1+ från första ord med start från bokstav 2. Upp till 4. Finns inte tillräckligt många tecken från första ordet så läggs ett randomtecken till."
-
-}
+             while ($script:Comparison -contains $candidate) {
+                    $arr = $candidate.ToCharArray()
+                    $i = $arr.Length - 1
+                    $arr[$i] = if ($arr[$i] -eq 'Z') { 'A' } else { [char]([int]$arr[$i] + 1) }
+                    $candidate = (-join $arr)
+                } 
+            
+         
+    
+        $result = $candidate
+        $felmeddelandeAkronym = "Skifte position 1+ från första ord med start från bokstav 2. Upp till 4. Finns inte tillräckligt många tecken från första ordet så läggs ett randomtecken till."
+    
+    }
 
 
 
@@ -317,6 +328,8 @@ function Invoke-Processing {
             while ($script:Comparison -contains $candidate)  # Kollar att den randomgenerade akronym inte tar en akronym som redan finns i listan (arrayen Comparison)
 
             $result = $candidate
+			$felmeddelandeAkronym = "Random genererad akronym gjort från ett eller flera sammanhängande ord (men inte fyra)"
+			
         }
 
         else {
@@ -327,6 +340,8 @@ function Invoke-Processing {
                 for ($i = 0; $i -lt 4; $i++) {
                     $result += [char](Get-Random -Minimum 65 -Maximum 91)
                 }
+				
+			 $felmeddelandeAkronym = "Helt randomgenerad akronym eftersom inga bokstäver finns i systemnamnet. T. ex '81' utan bokstäver."	
             }
             while ($script:Comparison -contains $result)
         }
@@ -334,15 +349,9 @@ function Invoke-Processing {
   
 
       
-        $felmeddelandeAkronym = "Random genererad akronym gjort från ett eller flera sammanhängande ord (men inte fyra) eller ett systemnamn som 8181 utan bokstäver."
+        
           
-
-    }
-
-    # store used acronym
-	
-	
-    $script:Comparison += $result
+   $script:Comparison += $result
 
     return [PSCustomObject]@{
         Systemnamn = $Systemnamn
@@ -350,6 +359,12 @@ function Invoke-Processing {
         NyAkronym    = $result
         FelMedAkronym = $felmeddelandeAkronym
     }
+    }
+
+    # store used acronym
+	
+	
+ 
   
 
 function Build-Summary {
@@ -462,30 +477,10 @@ $btnExport.Add_Click({
 
     # ---------------- EXPORT ----------------
     $excel = $script:results | Export-Excel -Path $path `
-        -WorksheetName "Results" -AutoSize -PassThru
+        -WorksheetName "Results" -AutoSize -PassThru -erroraction SilentlyContinue
 
     # Summary sheet
-    $summary | Export-Excel -ExcelPackage $excel -WorksheetName "Summary"
-
-    $ws = $excel.Workbook.Worksheets["Results"]
-
-    # ---------------- COLORING ----------------
-    $colIndex = ($script:results[0].PSObject.Properties.Name |
-        Select-String "FelMedAkronym").LineNumber
-
-    for ($i = 2; $i -le ($script:results.Count + 1); $i++) {
-
-        $msg = $ws.Cells[$i, $colIndex].Text
-
-        if ([string]::IsNullOrWhiteSpace($msg)) {
-            $ws.Row($i).Style.Fill.PatternType = 'Solid'
-            $ws.Row($i).Style.Fill.BackgroundColor.SetColor([System.Drawing.Color]::LightGreen)
-        }
-        else {
-            $ws.Row($i).Style.Fill.PatternType = 'Solid'
-            $ws.Row($i).Style.Fill.BackgroundColor.SetColor([System.Drawing.Color]::LightCoral)
-        }
-    }
+    $summary | Export-Excel -ExcelPackage $excel -WorksheetName "Summary" -erroraction SilentlyContinue
 
     Close-ExcelPackage $excel
 
